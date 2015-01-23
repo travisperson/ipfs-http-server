@@ -8,6 +8,7 @@ import (
 	core "github.com/jbenet/go-ipfs/core"
 	coreunix "github.com/jbenet/go-ipfs/core/coreunix"
 	fsrepo "github.com/jbenet/go-ipfs/repo/fsrepo"
+	"net"
 	"io"
 	"net/url"
 	"net/http"
@@ -97,7 +98,17 @@ func main() {
 
 	http.Handle("/", http.FileServer(http.Dir(".")))
 
-	http.ListenAndServe(":8080", nil)
+	addr := &net.TCPAddr{net.IPv4(127,0,0,1), 8080,""}
+
+	for  {
+		_, err := net.Dial("tcp", addr.String())
+		if err == nil {
+			addr.Port++
+		} else {
+			fmt.Printf("Starting ipfs-http-server on %s", addr.String())
+			err = http.ListenAndServe(addr.String(), nil)
+		}
+	}
 }
 
 func doStuff(w http.ResponseWriter, r *http.Request) {
