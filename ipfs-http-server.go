@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"mime"
+	"strings"
 	"code.google.com/p/go.net/context"
 	core "github.com/jbenet/go-ipfs/core"
 	coreunix "github.com/jbenet/go-ipfs/core/coreunix"
@@ -31,22 +33,30 @@ func (p *IPFSHandler) Init(repo string) {
 }
 
 func (p *IPFSHandler) Get(w http.ResponseWriter, r *http.Request) {
-	blk := r.URL.Path[6:]
+	path := r.URL.Path[6:]
+	fmt.Println(path)
 
-	if len(blk) < 3 {
+	if len(path) < 3 {
 		w.WriteHeader(403)
 		io.WriteString(w, "Hash must be longer than 3 bytes")
 		return
 	}
-
-	fmt.Println(blk)
 	
-	reader, err := coreunix.Cat(p.node, blk)
-
+	reader, err := coreunix.Cat(p.node, path)
 	if err != nil {
 		w.WriteHeader(404)
-		io.WriteString(w, "Failed to retrieve: " + blk)
+		io.WriteString(w, "Failed to retrieve: " + path)
 		return
+	}
+
+	extensionIndex := strings.LastIndex(path, ".")
+
+	if extensionIndex != -1 {
+		extension := path[extensionIndex:]
+		mimeType := mime.TypeByExtension(extension)
+		if len(mimeType) > 0 {
+			w.Header().Add("Content-Type", mimeType)
+		}
 	}
 
 	io.Copy(w, reader)
