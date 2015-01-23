@@ -105,8 +105,12 @@ func main() {
 		if err == nil {
 			addr.Port++
 		} else {
-			fmt.Printf("Starting ipfs-http-server on %s", addr.String())
-			fmt.Fatal(http.ListenAndServe(addr.String(), nil))
+			fmt.Printf("Starting ipfs-http-server on %s\n", addr.String())
+			err = http.ListenAndServe(addr.String(), nil)
+			
+			if err != nil {
+				fmt.Printf("Error: ", err)
+			}
 		}
 	}
 }
