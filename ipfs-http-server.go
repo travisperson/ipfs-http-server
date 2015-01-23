@@ -96,9 +96,6 @@ func main() {
 		http.HandleFunc("/ipfs/", ipfs.Get)
 	}
 
-	fmt.Println(resp)
-
-
 	http.Handle("/", http.FileServer(http.Dir(".")))
 
 	http.ListenAndServe(":8080", nil)
