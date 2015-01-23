@@ -106,7 +106,7 @@ func main() {
 			addr.Port++
 		} else {
 			fmt.Printf("Starting ipfs-http-server on %s", addr.String())
-			err = http.ListenAndServe(addr.String(), nil)
+			fmt.Fatal(http.ListenAndServe(addr.String(), nil))
 		}
 	}
 }
