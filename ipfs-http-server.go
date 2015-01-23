@@ -66,33 +66,32 @@ func (p *IPFSHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 
-	// Check to see if the daemon is running
-	// Hopefully there will be a better way to do this with
-	// HEAD at some point
-	resp, err := http.Get("http://127.0.0.1:5001/ipfs/")
+	ipfs := IPFSHandler{}
 
+	usr, err := user.Current()
 	if err != nil {
 		panic(err)
 	}
 
-	if resp.StatusCode == 400 {
+	ipfs_repo := usr.HomeDir + "/.go-ipfs"
+
+	// Check to see if the daemon is running
+	// Hopefully there will be a better way to do this with
+	// HEAD at some point
+	repoLocked := fsrepo.LockedByOtherProcess(ipfs_repo)
+
+	if repoLocked {
+		// Most likely the daemon is running
 		remote, err := url.Parse("http://127.0.0.1:5001")
 
 		if err != nil {
 			panic(err)
 		}
+
 		proxy := httputil.NewSingleHostReverseProxy(remote)
 		http.Handle("/ipfs/", proxy)
 	} else {
-		ipfs := IPFSHandler{}
-
-		usr, err := user.Current()
-		if err != nil {
-			panic(err)
-		}
-
-		ipfs.Init(usr.HomeDir + "/.go-ipfs")
-
+		ipfs.Init(ipfs_repo)
 		http.HandleFunc("/ipfs/", ipfs.Get)
 	}
 
