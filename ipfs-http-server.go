@@ -9,7 +9,9 @@ import (
 	coreunix "github.com/jbenet/go-ipfs/core/coreunix"
 	fsrepo "github.com/jbenet/go-ipfs/repo/fsrepo"
 	"io"
+	"net/url"
 	"net/http"
+	"net/http/httputil"
 	"os/user"
 )
 
@@ -41,7 +43,7 @@ func (p *IPFSHandler) Get(w http.ResponseWriter, r *http.Request) {
 		io.WriteString(w, "Hash must be longer than 3 bytes")
 		return
 	}
-	
+
 	reader, err := coreunix.Cat(p.node, path)
 	if err != nil {
 		w.WriteHeader(404)
@@ -61,18 +63,42 @@ func (p *IPFSHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	io.Copy(w, reader)
 }
+
 func main() {
 
-	ipfs := IPFSHandler{}
-	
-	usr, err := user.Current()
+	// Check to see if the daemon is running
+	// Hopefully there will be a better way to do this with
+	// HEAD at some point
+	resp, err := http.Get("http://127.0.0.1:5001/ipfs/")
+
 	if err != nil {
 		panic(err)
 	}
 
-	ipfs.Init(usr.HomeDir + "/.go-ipfs")
+	if resp.StatusCode == 400 {
+		remote, err := url.Parse("http://127.0.0.1:5001")
 
-	http.HandleFunc("/ipfs/", ipfs.Get)
+		if err != nil {
+			panic(err)
+		}
+		proxy := httputil.NewSingleHostReverseProxy(remote)
+		http.Handle("/ipfs/", proxy)
+	} else {
+		ipfs := IPFSHandler{}
+
+		usr, err := user.Current()
+		if err != nil {
+			panic(err)
+		}
+
+		ipfs.Init(usr.HomeDir + "/.go-ipfs")
+
+		http.HandleFunc("/ipfs/", ipfs.Get)
+	}
+
+	fmt.Println(resp)
+
+
 	http.Handle("/", http.FileServer(http.Dir(".")))
 
 	http.ListenAndServe(":8080", nil)
