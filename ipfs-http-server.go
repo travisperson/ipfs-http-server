@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"os/user"
+	"flag"
 )
 
 type IPFSHandler struct {
@@ -67,6 +68,10 @@ func (p *IPFSHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 
+	flag_port := flag.Int("port", 8080, "Port to attempt to listen on")
+	
+	flag.Parse()
+
 	ipfs := IPFSHandler{}
 
 	usr, err := user.Current()
@@ -98,7 +103,7 @@ func main() {
 
 	http.Handle("/", http.FileServer(http.Dir(".")))
 
-	addr := &net.TCPAddr{net.IPv4(127,0,0,1), 8080,""}
+	addr := &net.TCPAddr{net.IPv4(127,0,0,1), *flag_port,""}
 
 	for  {
 		_, err := net.Dial("tcp", addr.String())
