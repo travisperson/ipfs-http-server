@@ -10,13 +10,13 @@ import (
 	fsrepo "github.com/jbenet/go-ipfs/repo/fsrepo"
 	"net"
 	"io"
+	"os"
 	"net/url"
 	"net/http"
 	"net/http/httputil"
 	"os/user"
 	"flag"
 )
-
 type IPFSHandler struct {
 	repo *fsrepo.FSRepo
 	node *core.IpfsNode
@@ -54,7 +54,6 @@ func (p *IPFSHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	extensionIndex := strings.LastIndex(path, ".")
-
 	if extensionIndex != -1 {
 		extension := path[extensionIndex:]
 		mimeType := mime.TypeByExtension(extension)
@@ -63,12 +62,14 @@ func (p *IPFSHandler) Get(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	io.Copy(w, reader)
+	io.Copy(os.Stdout, reader)
+
 }
 
 func main() {
 
-	flag_port := flag.Int("port", 8080, "Port to attempt to listen on")
+	flag_port  := flag.Int("port", 8080, "Port to attempt to listen on")
+	flag_proxy := flag.String("proxy", "", "Reverse proxy / to a different server instead of serving the current directory")
 	
 	flag.Parse()
 
@@ -81,9 +82,7 @@ func main() {
 
 	ipfs_repo := usr.HomeDir + "/.go-ipfs"
 
-	// Check to see if the daemon is running
-	// Hopefully there will be a better way to do this with
-	// HEAD at some point
+	// Check to see if the repo is locked
 	repoLocked := fsrepo.LockedByOtherProcess(ipfs_repo)
 
 	if repoLocked {
@@ -101,7 +100,26 @@ func main() {
 		http.HandleFunc("/ipfs/", ipfs.Get)
 	}
 
-	http.Handle("/", http.FileServer(http.Dir(".")))
+	if len(*flag_proxy) > 0 {
+		host, port, err := net.SplitHostPort(*flag_proxy)
+	
+		var remote *url.URL
+		if err != nil {
+			remote, err = url.Parse(*flag_proxy)
+			if err != nil {
+				panic(err)
+			}
+		} else {
+			remote = new(url.URL)
+			remote.Host = host+":"+port
+			remote.Scheme = "http"
+		}
+
+		proxy := httputil.NewSingleHostReverseProxy(remote)
+		http.Handle("/", proxy)
+	} else {
+		http.Handle("/", http.FileServer(http.Dir(".")))
+	}
 
 	addr := &net.TCPAddr{net.IPv4(127,0,0,1), *flag_port,""}
 
@@ -110,7 +128,7 @@ func main() {
 		if err == nil {
 			addr.Port++
 		} else {
-			fmt.Printf("Starting ipfs-http-server on %s\n", addr.String())
+			fmt.Printf("Starting ipfs-http-server on http://%s\n", addr.String())
 			err = http.ListenAndServe(addr.String(), nil)
 			
 			if err != nil {
