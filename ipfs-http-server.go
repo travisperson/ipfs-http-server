@@ -87,7 +87,7 @@ func main() {
 
 	if repoLocked {
 		// Most likely the daemon is running
-		remote, err := url.Parse("http://127.0.0.1:5001")
+		remote, err := url.Parse("http://127.0.0.1:8080")
 
 		if err != nil {
 			panic(err)
